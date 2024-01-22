@@ -1,0 +1,23 @@
+﻿@page "/test"
+@using ProjectManager.Shared;
+@inject HttpClient Http
+
+<input type="text" placeholder="name" @bind="@_name"/>
+<button @onclick="Submit">Submit</button>
+
+@code {
+	MilestoneDto _m = new();
+	private string _name = null!;
+	public async Task Submit()
+	{
+		_m = new()
+		{
+				Name = _name,
+				Description = "Leírás",
+				Deadline = new()
+		};
+
+		var res = await Http.PostAsJsonAsync("api/MileStone", _m);
+		if(res.IsSuccessStatusCode) Console.WriteLine("Siker!");
+	}
+}

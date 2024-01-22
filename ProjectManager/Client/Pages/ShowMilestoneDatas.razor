@@ -1,0 +1,22 @@
+﻿<MudDialog>
+    <DialogContent>
+        <div class="d-flex flex-column py-1">
+            <MudTextField @bind-Value="Name" Label="Név" ReadOnly="true" Variant="Variant.Text" />
+            <MudTextField @bind-Value="Description" Label="Leírás" ReadOnly="true" Variant="Variant.Text" />
+            <MudTextField @bind-Value="DeadLine" Format="yyyy.MM.dd" Label="Határidő" ReadOnly="true" Variant="Variant.Text" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton @onclick="Submit" Variant="Variant.Outlined">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public string Name { get; set; }
+    [Parameter] public string Description { get; set; }
+    [Parameter] public DateTime DeadLine { get; set; }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(true));
+}

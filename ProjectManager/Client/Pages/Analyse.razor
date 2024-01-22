@@ -1,0 +1,47 @@
+﻿@page "/analyse"
+@layout MainLayout
+@using Microsoft.AspNetCore.Authorization;
+@using ProjectManager.Shared;
+@attribute [Authorize]
+@inject HttpClient http
+
+<div class="page">
+	<div class="selector">
+		<MudSelect @bind-Value="firstOption" T="string" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+			<MudSelectItem T="string" Value="@("BurnDownChart")" />
+			<MudSelectItem T="string" Value="@("TimeDiagram")" />
+		</MudSelect>
+	</div>
+
+	<div class="center">
+		@if(firstOption == "BurnDownChart")
+		{
+			<BurnDownChart id="Project.Id" />
+		}
+		else
+		{
+			<TimeDiagram />
+		}
+	</div>
+
+	<div class="selector">
+		<MudSelect @bind-Value="Project" T="ProjectDto" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+			@foreach (var p in Projects)
+			{
+				<MudSelectItem T="ProjectDto" Value="p" />
+			}
+		</MudSelect>
+	</div>
+</div>
+
+@code{
+	public string firstOption { get; set; } = "BurnDownChart";
+	public ProjectDto Project{ get; set; }
+
+	public List<ProjectDto> Projects = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		Projects = await http.GetFromJsonAsync<List<ProjectDto>>("api/Project/GetAllProjects"); //todo Project a neve??
+	}
+}

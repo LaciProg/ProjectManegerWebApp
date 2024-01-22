@@ -1,0 +1,24 @@
+﻿@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+<MudLink Color="Color.Secondary" class="text-center mt-4" Href="/projects">Projektjeim</MudLink>
+<MudLink Color="Color.Secondary" class="text-center mt-4" Href="/tasks">Feladataim</MudLink>
+<MudLink Color="Color.Secondary" class="text-center mt-4" Href="/analyse">Áttekintés</MudLink>
+<MudSpacer />
+<AuthorizeView>
+	<Authorized>
+		<MudLink Color="Color.Secondary" class="text-center mb-4" Href="/user">Hello, @context.User?.Identity.Name!</MudLink>
+		<MudLink Color="Color.Secondary" class="text-center mb-4 nav-link" OnClick="Redirect">Kijelentkezés</MudLink>
+	</Authorized>
+	<NotAuthorized>
+		<MudLink Color="Color.Secondary" class="mr-12" Href="Identity/Account/Login">Bejelentkezés</MudLink>
+	</NotAuthorized>
+</AuthorizeView>
+
+@code{
+	void Redirect()
+	{
+		Navigation.NavigateToLogout("authentication/logout");
+	}
+}

@@ -1,0 +1,48 @@
+﻿@using ProjectManager.Shared;
+@using System.Text.Json;
+@inject HttpClient http
+@*@inject DialogService DialogService*@
+
+<MudDialog>
+    <DialogContent>
+        <div class="d-flex flex-column py-1">
+            <MudTextField @bind-Value="MilestoneName" Label="Név" Variant="Variant.Filled"></MudTextField>
+            <MudTextField @bind-Value="MilestoneDescription" Label="Leírás" Variant="Variant.Filled"></MudTextField>
+            <MudTextField @bind-Value="DeadLine" Format="yyyy.MM.dd" Label="Határidő" Variant="Variant.Filled"></MudTextField>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton @onclick="Submit" Variant="Variant.Outlined">Hozzáad</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code{
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    //[Parameter] public EventCallback<string> OnDialogClosed { get; set; }
+
+    public string MilestoneName { get; set; }
+    public string MilestoneDescription { get; set; }
+    public DateTime DeadLine{ get; set; }
+
+    public async Task Submit()
+    {
+        var result = await http.PostAsJsonAsync<MilestoneDto>("api/Milestone/SaveMilestone", new MilestoneDto()
+        {
+            //Id = 0, //mert új
+            Name = MilestoneName,
+            Description = MilestoneDescription,
+            Deadline = DeadLine
+        });
+        if (result.IsSuccessStatusCode)
+        {
+            //var content = await result.Content.ReadAsStringAsync();
+            //var responseObject = JsonSerializer.Deserialize<MilestoneDto>(content);
+
+            var m = await http.GetFromJsonAsync<MilestoneDto>("api/Milestone/GetLast");
+
+            Console.WriteLine($"Milestone id: {m.Id}");
+            MudDialog.Close(DialogResult.Ok(m.Id));
+        }
+        else Console.WriteLine("Hiba van a dialognál");
+    }
+}

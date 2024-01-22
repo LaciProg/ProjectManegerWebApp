@@ -1,0 +1,83 @@
+﻿@page "/edituser/{id}"
+@using ProjectManager.Shared;
+@inject HttpClient http
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<h3>Munkatárs módosítása</h3>
+
+<MudTextField @bind-Value="UserName" Label="Név" Variant="Variant.Filled"></MudTextField>
+<MudTextField @bind-Value="BirthDate" Format="yyyy.MM.dd" Label="Határidő" Variant="Variant.Filled"></MudTextField>
+<MudSelect @bind-Value="Permission" T="EmployeeDto.PermissionTypeDto" Style="color: white" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+	<MudSelectItem T="EmployeeDto.PermissionTypeDto" Value="@(EmployeeDto.PermissionTypeDto.Employee)" />
+	<MudSelectItem T="EmployeeDto.PermissionTypeDto" Value="@(EmployeeDto.PermissionTypeDto.ProjectManager)" />
+	<MudSelectItem T="EmployeeDto.PermissionTypeDto" Value="@(EmployeeDto.PermissionTypeDto.Admin)" />
+</MudSelect>
+
+<MudButton @onclick="Submit" Variant="Variant.Outlined">Mentés</MudButton>
+
+@code {
+	[Parameter]
+	public required string Id { get; set; }
+
+	public string? UserName { get; set; }
+	public DateTime? BirthDate { get; set; }
+	public EmployeeDto.PermissionTypeDto Permission { get; set; }
+
+	EmployeeDto employee;
+
+	protected override async Task OnInitializedAsync()
+	{
+		employee = await http.GetFromJsonAsync<EmployeeDto>($"api/Employee/GetEmployee/{Id}");
+		if(employee == null)
+		{
+			Snackbar.Add("Ismeretlen munkatárs!", Severity.Error);
+		}
+
+		if(employee.PermissionTypeLevel != EmployeeDto.PermissionTypeDto.Admin)
+		{
+			Snackbar.Add("Nincs jogosultsága!", Severity.Error);
+			Navigation.NavigateTo("/");
+		}
+
+		Permission = employee.PermissionTypeLevel;
+		UserName = employee.Name;
+		BirthDate = employee.BirthDate;
+
+	}
+
+
+
+	async Task Submit()
+	{
+		if(employee == null)
+		{
+			Snackbar.Add("Ismeretlen munkatárs", Severity.Error);
+			return;
+		}
+
+		if (string.IsNullOrEmpty(UserName))
+		{
+			Snackbar.Add("Nincs név megadva!", Severity.Error);
+			return;
+		}
+
+		var res = await http.PostAsJsonAsync("api/Employee/SaveEmployee", new EmployeeDto()
+		{
+			Id = employee.Id,
+			EmailAddress = employee.EmailAddress,
+			Password = employee.Password,
+			Name = UserName == null ? employee.Name : UserName,
+			BirthDate = BirthDate ?? employee.BirthDate,
+			Tasks = new(), 
+			PermissionTypeLevel = Permission
+		});
+
+		if (res.IsSuccessStatusCode)
+		{
+			Snackbar.Add("Mentve!", Severity.Success);
+			Navigation.NavigateTo("/");
+		}
+		else Snackbar.Add("Sikertelen mentés", Severity.Error);
+	}
+}

@@ -1,0 +1,134 @@
+﻿@page "/tasks"
+@using Microsoft.AspNetCore.Authorization;
+@using ProjectManager.Shared
+@inject ISnackbar Snackbar
+@inject	NavigationManager Nav
+@inject HttpClient Http
+@attribute [Authorize]
+
+<div class="center">
+	<div class="middle">
+		<div class="content">
+			<MudTextField @bind-Value="_search" Label="Keresés" Variant="Variant.Text" Immediate="true" @onkeyup="() => FilterTasks(_search)"></MudTextField>
+			<MudDropContainer ItemDropped="TaskItemUpdated" T="TaskItemDto" Items="_tasksFiltered" ItemsSelector="@((item, dropzone) => item.Status.ToString() == dropzone)" Class="d-flex flex-wrap flex-grow-1">
+
+				<ChildContent>
+					<MudDropZone style="width: 25rem;" T="TaskItemDto" Identifier="Active" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Aktív feladatok</MudText>
+					</MudDropZone>
+					<MudDropZone style="width: 25rem;" T="TaskItemDto" Identifier="Complete" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Megerősítésre vár</MudText>
+					</MudDropZone>
+					<MudDropZone style="width: 25rem;" T="TaskItemDto" Identifier="Archived" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Lezárt feladatok</MudText>
+					</MudDropZone>
+				</ChildContent>
+				<ItemRenderer>
+					<MudButton style="background-color: white;" @onclick="() => ChangeTask(context)" @ondblclick="() => NavToProjectOfTask(context)" FullWidth="true" Elevation="25" Class="pa-4 my-2">@context.Name</MudButton>
+				</ItemRenderer>
+			</MudDropContainer>
+		</div>
+	</div>
+
+	<div class="bottom">
+		<div class="bot-top">
+			<div class="selectors">
+				@_current?.Name
+				<MudButton @onclick="SetDescription">Leírás</MudButton>
+				<MudButton @onclick="SetAssignees">Hozzárendeltek</MudButton>
+			</div>
+			<textarea readonly class="description" rows="8" cols="100">
+				@_displayedText
+			</textarea>
+		</div>
+	</div>
+</div>
+
+
+@code {
+	private List<TaskItemDto> _tasks = new();
+	private List<TaskItemDto> _tasksFiltered = new();
+	private TaskItemDto? _current;
+	private string _search = "";
+	private string _displayedText = "";
+
+	protected override async void OnInitialized()
+	{
+		_tasks = await Http.GetFromJsonAsync<List<TaskItemDto>>("api/Task/GetAllTasks") ?? new List<TaskItemDto>();
+	/*//TODO: remove example data
+		_tasks.AddRange(new List<TaskItemDto>
+		{
+			new() { Name = "Task 1a", Description = "desc1a", Status = ProjectDto.StatusTypeDto.Active },
+			new() { Name = "Task 1b", Description = "desc1b", Status = ProjectDto.StatusTypeDto.Active },
+			new() { Name = "Task 1c", Description = "desc1c", Status = ProjectDto.StatusTypeDto.Active },
+			new() { Name = "Task 2", Description = "desc2", Status = ProjectDto.StatusTypeDto.Archived },
+			new() { Name = "Task 3", Description = "desc3", Status = ProjectDto.StatusTypeDto.Complete }
+		});*/
+		_tasksFiltered = _tasks;
+		StateHasChanged();
+	}
+
+	private void SetDescription()
+	{
+		_displayedText = _current?.Description ?? "<>";
+	}
+
+	private void SetAssignees()
+	{
+		var assignees = _current?.Assignees;
+		if (assignees == null || assignees.Count == 0)
+		{
+			_displayedText = "Nincs hozzárendelve senki";
+			return;
+		}
+		_displayedText = assignees.Select(x => x.Name).Aggregate((x, y) => x + ", " + y);
+
+	}
+
+	private void ChangeTask(TaskItemDto target)
+	{
+		_current = target;
+		SetDescription();
+		StateHasChanged();
+	}
+
+	private async void NavToProjectOfTask(TaskItemDto target)
+	{
+	//TODO: don't
+		var project = (await Http.GetFromJsonAsync<List<ProjectDto>>("/api/Project/GetAllProjects"))
+			?.Where(x => x.Tasks.Contains(target)).FirstOrDefault();
+		if (project != null)
+			Nav.NavigateTo($"/projects/{project.Id}/projectTasks");
+	}
+
+	private async void TaskItemUpdated(MudItemDropInfo<TaskItemDto> dropItem)
+	{
+		var temp = dropItem.Item?.Status;
+		if (dropItem.Item == null || temp == null) return;
+
+		var task = dropItem.Item;
+		task.Status = (ProjectDto.StatusTypeDto)Enum.Parse(typeof(ProjectDto.StatusTypeDto), dropItem.DropzoneIdentifier);
+		Snackbar.Add(task.Status.ToString());
+		if (dropItem.DropzoneIdentifier == "Complete") {
+			task.Completed = DateTime.Now;
+		}
+		else task.Completed = null;
+		var res = await Http.PostAsJsonAsync("api/Task/SaveTask", task);
+		if (!res.IsSuccessStatusCode)
+		{
+			dropItem.Item.Status = temp.Value;
+			Snackbar.Add("Hiba", Severity.Error);
+		}
+
+		StateHasChanged();
+	}
+	
+	private void FilterTasks(string search)
+	{
+		_tasksFiltered = _tasks.Where(x => x.Name.Contains(search)).ToList();
+		StateHasChanged();
+	}
+
+
+
+}

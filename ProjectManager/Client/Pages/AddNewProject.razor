@@ -1,0 +1,176 @@
+﻿@page "/newproject"
+@using ProjectManager.Shared;
+@using Microsoft.AspNetCore.Authorization;
+@using System.Net
+@attribute [Authorize]
+@layout LoginLayout
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager nav
+
+<h1>Új projekt</h1> <!--Text Align-->
+<MudTextField @bind-Value="ProjectName" Label="Név" Variant="Variant.Filled"></MudTextField>
+<MudTextField @bind-Value="ProjectGoal" Label="Cél" Variant="Variant.Filled"></MudTextField>
+<MudTextField T="string" Label="Leírás" Variant="Variant.Filled" Text="@ProjectDescription" @bind-Value="ProjectDescription" Lines="5" />
+    
+<div class="addField">
+    <div style="display: flex; flex-direction: row;"> <!---->
+        <MudAutocomplete T="string" Label="Feladatok hozzárendelése" @bind-Value="TaskName" SearchFunc="@FindTasks" />
+        <MudButton @onclick="AddTask" style="border: 1px solid rgb(189, 189, 189); background-color: rgb(232,232,232)" class="p-0 mt-1 ml-1" Variant="Variant.Outlined">+</MudButton>
+    </div>
+    <MudChipSet>
+            @foreach(var t in Tasks){
+                <MudChip Label="true" Color="Color.Default" OnClose="() => RemoveTask(t)">@t.Name</MudChip>
+            }
+    </MudChipSet>
+</div>
+
+<div class="addField">
+    <div style="display: flex; flex-direction: row;"> <!---->
+        <MudAutocomplete T="string" Label="Ember hozzárendelése" @bind-Value="EmployeeName" SearchFunc="@FindEmployees" />
+        <MudButton @onclick="AddEmployee" style="border: 1px solid rgb(189, 189, 189); background-color: rgb(232,232,232)" class="p-0 mt-1 ml-1" Variant="Variant.Outlined">+</MudButton>
+    </div>
+    <MudChipSet>
+            @foreach(var e in Employees){
+                <MudChip Label="true" Color="Color.Default" OnClose="() => RemoveEmployee(e)">@e.Name</MudChip>
+            }
+    </MudChipSet>
+</div>
+
+<MudAutocomplete T="string" Label="Manager" @bind-Value="Manager" SearchFunc="@FindManagers" />
+    
+<div class="buttons">
+    <MudButton @onclick="Submit" Variant="Variant.Outlined">Mentés</MudButton>
+    <MudButton Class="mt-2" @onclick="Discard" Variant="Variant.Outlined">Elvetés</MudButton>
+</div>
+
+@code {
+    public string? ProjectName { get; set; }
+    public string? ProjectGoal { get; set; }
+    public string? ProjectDescription { get; set; }
+    public string? EmployeeName {get; set; } //a hozzárendelt munkatárs neve
+    private string? TaskName { get; set; }
+    public string? Manager {get;set;}
+
+    public List<TaskItemDto> Tasks = new();
+    public List<EmployeeDto> Employees = new();
+
+    private async void AddTask(){
+        if(TaskName == null){
+            return;
+        }
+        var allTasks = await Http.GetFromJsonAsync<List<TaskItemDto>>("api/Task/GetAllTasks");
+        var res = allTasks?.SingleOrDefault(t => t.Name == TaskName);
+        if (res == null || Tasks.Contains(res)) return;
+        Tasks.Add(res);
+        TaskName = null;
+        StateHasChanged();
+    }
+
+    async void AddEmployee(){
+        if(EmployeeName == null)
+        {
+            return;
+        }
+
+        var employees = await Http.GetFromJsonAsync<List<EmployeeDto>>($"api/Employee/GetAllEmployees" );
+        if (employees != null)
+        {
+            var res = employees.SingleOrDefault(e => e.Name == EmployeeName);
+
+            if (!Employees.Any(e => e.EmailAddress == res?.EmailAddress || e.Name == res?.Name))
+            {
+                if (res != null)
+                {
+                    Employees.Add(res);
+                    StateHasChanged();
+                }
+            }
+            else Snackbar.Add("Már hozzá lett adva!", Severity.Error);
+        }
+        EmployeeName = "";
+        StateHasChanged();
+    }
+
+    void RemoveTask(TaskItemDto t){
+        Tasks.Remove(t);
+    }
+
+    void RemoveEmployee(EmployeeDto e){
+        Employees.Remove(e);
+    }
+
+    private Task<IEnumerable<string>> FindManagers(string value)
+    {
+        var managers = Employees.FindAll(e => e.PermissionTypeLevel == EmployeeDto.PermissionTypeDto.ProjectManager);
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(managers.Select(e => e.Name));
+        return Task.FromResult(managers.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(e => e.Name));
+    }
+
+    private async Task<IEnumerable<string>?> FindEmployees(string value)
+    {
+        var employees = await Http.GetFromJsonAsync<List<EmployeeDto>>($"api/Employee/GetAllEmployees" );
+
+        // if (employees != null)
+        //     foreach (var employeeDto in employees)
+        //         Employees.Add(employeeDto);
+        //await
+        employees = await Http.GetFromJsonAsync<List<EmployeeDto>>($"api/Employee/GetAllEmployees" );
+
+        if (string.IsNullOrEmpty(value))
+            if (employees != null) return employees.Select(e => e.Name);
+        return employees?.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(e => e.Name);
+    }
+
+    private async Task<IEnumerable<string>?> FindTasks(string value)
+    {
+        var tasks = await Http.GetFromJsonAsync<List<TaskItemDto>>("api/Task/GetAllTasks");
+
+        if (string.IsNullOrEmpty(value))
+            if (tasks != null) return tasks.Select(t => t.Name);
+        return tasks?.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(t => t.Name);
+
+    } 
+
+    protected override async Task OnInitializedAsync(){
+        /*Employees.Add(new() { Name = "Test1", PermissionTypeLevel = EmployeeDto.PermissionTypeDto.ProjectManager});
+        Employees.Add(new() { Name = "Test2"});
+        Employees.Add(new() { Name = "Test3"});
+        Employees.Add(new() { Name = "Test4"});
+        Employees.Add(new() { Name = "Test5"});
+        Employees.Add(new() { Name = "Test6"});
+        Employees.Add(new() { Name = "Test7"});
+        Employees.Add(new() { Name = "Test8" });*/
+
+
+    }
+
+    async void Submit()
+    {
+        var managerDto = Employees.SingleOrDefault(e => e.Name == Manager);
+        if (managerDto == null) return;
+        managerDto.Tasks = new List<TaskItemDto>();
+        if (Tasks == null) Tasks = new List<TaskItemDto>();
+        var postItem = new ProjectDto
+        {
+            Id = 0,
+            Name = ProjectName + "",
+            Goal = ProjectGoal + "",
+            Description = ProjectDescription + "",
+            Tasks = Tasks,
+            Assignees = Employees,
+            ProjectManager = managerDto,
+            Milestones = new List<MilestoneDto>(),
+            Status = ProjectDto.StatusTypeDto.Active
+        };
+
+        var res = await Http.PostAsJsonAsync("api/Project/SaveProject", postItem);
+
+        Snackbar.Add(res.StatusCode.ToString() == "OK" ? "Sikres művelet" : "Sikertelen művelet", res.StatusCode.ToString() == "Ok" ? Severity.Success : Severity.Error);
+    }
+
+    void Discard(){
+        nav.NavigateTo("/");
+    }
+}

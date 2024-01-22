@@ -1,0 +1,68 @@
+﻿@page "/db"
+@using ProjectManager.Shared;
+@inject HttpClient http
+
+<div class="paper">
+	<h1>Felhasználók kezelése</h1>
+	<button @onclick="GetAllUsers">Get All Users</button>
+
+	<input @bind="UserId" type="number" placeholder="id"/>
+	<input @bind="UserName" type="text" placeholder="név" />
+	<input type="checkbox" @bind="admin" />
+
+	<button @onclick="EditUser">Edit</button>
+</div>
+
+<div class="paper">
+	<h1>Projektek</h1>
+	<button @onclick="GetAllProjects">Get All Projects</button>
+</div>
+
+@code {
+
+	//user
+	public bool admin{ get; set; }
+	public int UserId { get; set; }
+	public string UserName { get; set; }
+
+	async Task GetAllUsers()
+	{
+		var res = await http.GetFromJsonAsync<List<EmployeeDto>>("api/Employee/GetAllEmployees");
+		foreach(var r in res)
+		{
+			Console.WriteLine($"{r.Id} {r.Name} {r.EmailAddress} {r.Password} {r.PermissionTypeLevel} {r.BirthDate}\n--------------------------");
+		}
+	}
+
+	async Task EditUser()
+	{
+		EmployeeDto user = await http.GetFromJsonAsync<EmployeeDto>($"api/Employee/GetEmployee/{UserId}") ?? throw new Exception("Nem jó");
+
+		Console.WriteLine($"{user.Id} {user.Name} {user.EmailAddress} {user.Password} {user.PermissionTypeLevel} {user.BirthDate} {user.Tasks}\n--------------------------");
+		if(user.Tasks == null) Console.WriteLine("ÜRES");
+
+		var post = await http.PostAsJsonAsync<EmployeeDto>("api/Employee/SaveEmployee", new()
+		{
+			Id = UserId,
+			Name = UserName,
+			EmailAddress = user.EmailAddress,
+			Password = user.Password,
+			BirthDate = user.BirthDate,
+			PermissionTypeLevel = admin ? EmployeeDto.PermissionTypeDto.Admin : EmployeeDto.PermissionTypeDto.Employee,
+			Tasks = new List<TaskItemDto>(), //TODO ez alapból valamiért null...
+		});
+		Console.WriteLine($"Eredmény: {post.StatusCode}");
+	}
+
+	async Task GetAllProjects()
+	{
+		var res = await http.GetFromJsonAsync<List<ProjectDto>>("api/Project/GetEveryProject");
+		if(res == null) Console.WriteLine("Üres lista");
+		Console.WriteLine(res.Count);
+		foreach(var r in res)
+		{
+			Console.WriteLine($"###############Project###############");
+			Console.WriteLine($"{r.Id} {r.Name} {r.Goal} {r.Description}");
+		}
+	}
+}

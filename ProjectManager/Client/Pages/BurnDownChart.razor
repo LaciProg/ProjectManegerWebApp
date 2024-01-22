@@ -1,0 +1,119 @@
+﻿@using ProjectManager.Shared
+@inject HttpClient http
+
+<MudText Typo="Typo.h3" GutterBottom="true">Burndown chart</MudText>
+
+<div>
+    <MudChart ChartType="ChartType.Line" ChartSeries="@Series" XAxisLabels="@XAxisLabels" Width="100%" Height="350px">
+
+    </MudChart>
+
+</div>
+<MudButton @onclick="Refresh">Refresh Data</MudButton>
+
+@code {
+    //szükséges paraméterek: aktuális projekt, ahhoz tartozó taskok, milestoneok, azok határidejei
+    [Parameter]
+    public int id { get; set; } //todo
+    public ProjectDto.StatusTypeDto Status { get; set; } //todo
+
+
+    public List<MilestoneDto> Milestones = new();
+
+    ProjectDto project;
+
+    protected override async Task OnInitializedAsync()
+    {
+        project = await http.GetFromJsonAsync<ProjectDto>($"api/Project/GetProject/{id}");
+
+
+        burnDownData = CalculateRemainingTask();
+        actualBurnDownData = CalculateActualRemainingTask();
+        XAxisLabels = burnDownData.Keys.Select(key => key.ToString("MMM-dd")).ToArray();
+        values = burnDownData.Values.Select(value => (double)value).ToArray();
+        values2 = actualBurnDownData.Values.Select(value => (double)value).ToArray();
+        Series =  new List<ChartSeries>()
+        {
+            //Sehogy nem tudtam megoldani, hogy már a chart inicializálásánál egy előre létrehozott tömböt rakjak bele
+            //ezért létrehozom üresen, és később frissítem
+            new ChartSeries() { Name= "Ideal Tasks remaining", Data = new double[burnDownData.Count] },
+            new ChartSeries() { Name = "Actual Tasks remaining", Data = new double[actualBurnDownData.Count] },
+        };
+        Refresh();
+    }
+
+    //aktuális napig tervezetten fennmaradó taszkok számának kiszámítása
+    //ez a tervezett
+    public Dictionary<DateTime, int> CalculateRemainingTask()
+    {
+
+        List<TaskItemDto> tasks = project.Tasks;
+        DateTime projectDeadline = project.Tasks.Where(t => t.Deadline == project.Tasks.Max(t => t.Deadline)).FirstOrDefault().Deadline; //todo
+
+        var remainingTasks = new Dictionary<DateTime, int>();
+        int totalTasks = tasks.Count;
+
+        //todo Datetime.today helyett a kezdés timestampje
+        for (DateTime currentDate = DateTime.Today; currentDate <= projectDeadline; currentDate = currentDate.AddDays(1))
+        {
+            int tasksUntilDeadline = tasks.Count(t => t.Deadline >= currentDate);
+            remainingTasks.Add(currentDate, tasksUntilDeadline);
+        }
+
+        return remainingTasks;
+
+    }
+    //Ténylegesen visszamaradt taszkok kiszámítása statusz alapján
+    public Dictionary<DateTime, int> CalculateActualRemainingTask()
+    {
+        List<TaskItemDto> tasks = project.Tasks;
+        DateTime projectDeadline = project.Tasks.Where(t => t.Deadline == project.Tasks.Max(t => t.Deadline)).FirstOrDefault().Deadline; //todo; //todo
+
+        // Calculate remaining tasks for each day until the project deadline
+        var remainingTasks = new Dictionary<DateTime, int>();
+        int totalTasks = tasks.Count;
+
+        TaskItemDto lasttask = tasks[tasks.Count - 1];
+
+        //todo Datetime.today helyett a kezdés timestampje
+        for (DateTime currentDate = DateTime.Today; currentDate <= projectDeadline; currentDate = currentDate.AddDays(1))
+        {
+            int tasksUntilDeadline = totalTasks - tasks.Count(t => t.Status == ProjectDto.StatusTypeDto.Active && t.Deadline >= currentDate); //todo add timestamp
+            remainingTasks.Add(currentDate, tasksUntilDeadline);
+        }
+
+        return remainingTasks;
+
+    }
+
+    Dictionary<DateTime, int> burnDownData;
+    Dictionary<DateTime, int> actualBurnDownData;
+
+    //taszkok számai, illetve az időpontok beletéve a burndownchart adatastruktúrájába megfelelő formátummal
+    public string[] XAxisLabels;
+    double[] values;
+    double[] values2;
+
+    //Chart inicializálása
+    public List<ChartSeries> Series;
+
+    //Chart aktualizálása
+    public void Refresh()
+    {
+        
+        var new_series = new List<ChartSeries>()
+        {
+            new ChartSeries() { Name= "Ideal Tasks remaining", Data = new double[burnDownData.Count]},
+            new ChartSeries() { Name = "Actual Tasks remaining", Data = new double[actualBurnDownData.Count]},
+        };
+        for (int i = 0; i < burnDownData.Count; i++)
+        {
+            new_series[0].Data[i] = values[i];
+            new_series[1].Data[i] = values2[i];
+        }
+        Series = new_series;
+        StateHasChanged();
+    }
+
+
+}

@@ -1,0 +1,256 @@
+﻿@page "/editproject/{id}"
+@using ProjectManager.Shared;
+@using Microsoft.AspNetCore.Authorization;
+@attribute [Authorize]
+@layout LoginLayout
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@*@inject DialogService DialogService*@
+
+<h1>@ProjectName szerkesztés</h1> <!--Text Align-->
+<MudTextField @bind-Value="ProjectName" Label="Név" Variant="Variant.Filled"></MudTextField>
+<MudTextField @bind-Value="ProjectGoal" Label="Cél" Variant="Variant.Filled"></MudTextField>
+<MudTextField T="string" Label="Leírás" Variant="Variant.Filled" Text="@ProjectDescription" @bind-Value="ProjectDescription" Lines="5" />
+
+
+<div class="addField">
+    <div style="display: flex; flex-direction: row;"> <!---->
+        <MudAutocomplete T="string" Label="Feladatok hozzárendelése" @bind-Value="TaskName" SearchFunc="@FindTasks" />
+        <MudButton @onclick="AddTask" style="border: 1px solid rgb(189, 189, 189); background-color: rgb(232,232,232)" class="p-0 mt-1 ml-1" Variant="Variant.Outlined">+</MudButton>
+    </div>
+    <MudChipSet>
+            @foreach(var t in Tasks){
+                <MudChip Label="true" Color="Color.Default" OnClose="() => RemoveTask(t)">@t.Name</MudChip>
+            }
+    </MudChipSet>
+</div>
+
+<div class="addField">
+	<div style="display: flex; flex-direction: row;">
+		<!---->
+		<MudAutocomplete T="string" Label="Ember hozzárendelése" @bind-Value="EmployeeName" SearchFunc="@FindEmployees" />
+		<MudButton @onclick="AddEmployee" style="border: 1px solid rgb(189, 189, 189); background-color: rgb(232,232,232)" class="p-0 mt-1 ml-1" Variant="Variant.Outlined">+</MudButton>
+	</div>
+	<MudChipSet>
+		@foreach (var e in Employees)
+		{
+			<MudChip Label="true" Color="Color.Default" OnClose="() => RemoveEmployee(e)">@e.Name</MudChip>
+		}
+	</MudChipSet>
+</div>
+
+<MudAutocomplete T="string" Label="Manager" @bind-Value="Manager" SearchFunc="@FindManagers" />
+
+<MudButton Class="mt-2" Variant="Variant.Outlined" @onclick="OpenDialog">Új mérföldkő</MudButton>
+<AddMilestoneDialog />
+<MudChipSet>
+	@foreach (var e in Milestones)
+	{
+		<MudChip Label="true" Color="Color.Default" OnClick="() => ShowMilestoneDatas(e)" OnClose="() => RemoveMilestone(e)">@e.Name</MudChip>
+	}
+</MudChipSet>
+
+<div class="buttons">
+	<MudButton @onclick="Submit" Variant="Variant.Outlined">Mentés</MudButton>
+	<MudButton Class="mt-2" @onclick="Discard" Variant="Variant.Outlined">Elvetés</MudButton>
+</div>
+
+@code {
+	[Parameter]
+	public required string Id { get; set; }
+
+	public string? ProjectName { get; set; }
+	public string? ProjectGoal { get; set; }
+	public string? ProjectDescription { get; set; }
+	public string? TaskName { get; set; }
+	public string? EmployeeName { get; set; } //a hozzárendelt munkatárs neve
+	public string? Manager { get; set; }
+
+	public List<TaskItemDto> Tasks = new();
+	public List<EmployeeDto> Employees = new();
+
+	private ProjectDto _project = new();
+
+	public List<MilestoneDto> Milestones = new();
+
+	private List<EmployeeDto> _allEmployees = new();
+
+
+	
+	private async void AddTask(){
+		if(TaskName == null){
+			return;
+		}
+		var allTasks = await Http.GetFromJsonAsync<List<TaskItemDto>>("api/Task/GetAllTasks");
+		var res = allTasks?.SingleOrDefault(t => t.Name == TaskName);
+		if (res == null || Tasks.Contains(res)) return;
+		Tasks.Add(res);
+		TaskName = null;
+		StateHasChanged();
+	}
+	
+	
+	async void AddEmployee(){
+		if(EmployeeName == null)
+		{
+			return;
+		}
+
+		var employees = await Http.GetFromJsonAsync<List<EmployeeDto>>($"api/Employee/GetAllEmployees" );
+		if (employees != null)
+		{
+			var res = employees.SingleOrDefault(e => e.Name == EmployeeName);
+
+			if (!Employees.Any(e => e.EmailAddress == res?.EmailAddress || e.Name == res?.Name))
+			{
+				if (res != null)
+				{
+					Employees.Add(res);
+					StateHasChanged();
+				}
+			}
+			else Snackbar.Add("Már hozzá lett adva!", Severity.Error);
+		}
+		EmployeeName = "";
+		StateHasChanged();
+	}
+	
+	void RemoveTask(TaskItemDto t){
+		Tasks.Remove(t);
+	}
+	
+	void RemoveEmployee(EmployeeDto e)
+	{
+		Employees.Remove(e);
+	}
+
+	void RemoveMilestone(MilestoneDto m)
+	{
+		Milestones.Remove(m);
+	}
+
+	private Task<IEnumerable<string>> FindManagers(string value)
+	{
+		var managers = _allEmployees.FindAll(e => e.PermissionTypeLevel == EmployeeDto.PermissionTypeDto.ProjectManager);
+		if (string.IsNullOrEmpty(value))
+			return Task.FromResult(managers.Select(e => e.Name));
+		return Task.FromResult(managers.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(e => e.Name));
+	}
+
+	private Task<IEnumerable<string>> FindEmployees(string value)
+	{
+		if (string.IsNullOrEmpty(value))
+			return Task.FromResult(_allEmployees.Select(e => e.Name));
+		return Task.FromResult(_allEmployees?.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(e => e.Name));
+	}
+	
+	private async Task<IEnumerable<string>?> FindTasks(string value)
+	{
+		var tasks = await Http.GetFromJsonAsync<List<TaskItemDto>>("api/Task/GetAllTasks");
+
+		if (string.IsNullOrEmpty(value))
+			if (tasks != null) return tasks.Select(t => t.Name);
+		return tasks?.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(t => t.Name);
+        
+	} 
+
+	protected override async Task OnInitializedAsync()
+	{
+		//Adatok lekérése API kéréssel TODO
+		_project = (await Http.GetFromJsonAsync<ProjectDto>($"api/Project/GetProject/{Id}"))!;
+		ProjectName = _project?.Name;
+		ProjectGoal = _project?.Goal;
+		ProjectDescription = _project?.Description;
+		Manager = _project?.ProjectManager?.Name;
+		if (_project?.Tasks != null) Tasks = _project.Tasks;
+
+
+		/*Employees.Add(new() { Name = "Jónás Dávid" });
+		Employees.Add(new() { Name = "Muzslai László" });
+		Employees.Add(new() { Name = "Wendl Csongor" });
+		Employees.Add(new() { Name = "Szombati Olivér" });
+		Employees.Add(new() { Name = "Jónás Dávid" }); //TODO remove*/
+
+
+		_allEmployees = await Http.GetFromJsonAsync<List<EmployeeDto>>($"api/Employee/GetAllEmployees");
+		
+
+		if (_allEmployees != null)
+			foreach (var employeeDto in _allEmployees.Where(employeeDto => _project != null && (_project.Assignees.Contains(employeeDto) 
+			                                                                                || _project.ProjectManager?.Name == employeeDto.Name)))
+			{
+				Employees.Add(employeeDto);
+			}
+		try
+		{
+			var milestones = await Http.GetFromJsonAsync<List<MilestoneDto>>($"api/Project/GetMilestonesForProject/{_project!.Id}");
+			if (milestones != null) Milestones.AddRange(milestones);
+		}
+		catch (Exception e)
+		{
+			Snackbar.Add("Niincsenek milestonok");
+		}
+	/*Milestones.Add(new() { Name = "Mérföldkő 1" });
+		Milestones.Add(new() { Name = "Mérföldkő 2" });
+		Milestones.Add(new() { Name = "Mérföldkő 3" });
+		Milestones.Add(new() { Name = "Mérföldkő 4" }); //TODO remove*/
+	//DialogService.OnDialogClosed += HandleDialogClosed;
+	}
+
+
+	async void OpenDialog()
+	{
+		var dialog = await DialogService.ShowAsync<AddMilestoneDialog>("Új mérföldkő");
+
+		var result = await dialog.Result;
+
+		var id = long.Parse(result.Data.ToString()); //TODO lehet ez így még nem jó?
+		Console.WriteLine(id);
+		//TODO Ha itt az a terv, hogy egy új milestint hozz létre, akkor előtte azt el kell menetni db-be különben a kérés nem fog menni.
+		//TODO ID-t meg elvileg kap,de lehet csak a db-ben, de a save responsban lehet benne lesz
+		
+		var milestone = await Http.GetFromJsonAsync<MilestoneDto>($"api/Milestone/Get/{id}");
+		Console.WriteLine(milestone);
+		Milestones.Add(milestone);
+		StateHasChanged();
+	}
+
+	async void ShowMilestoneDatas(MilestoneDto m)
+	{
+		var parameters = new DialogParameters<ShowMilestoneDatas>();
+		parameters.Add(p => p.Name, m.Name);
+		parameters.Add(p => p.Description, m.Description);
+		parameters.Add(p => p.DeadLine, m.Deadline);
+
+		DialogService.Show<ShowMilestoneDatas>("Mérföldkő", parameters);
+	}
+
+
+	async void Submit()
+	{
+		var managerDto = Employees.SingleOrDefault(e => e.Name == Manager);
+		if (managerDto == null) return;
+		if(managerDto.Tasks == null)
+			managerDto.Tasks = new List<TaskItemDto>();
+
+
+		_project.Name = ProjectName + "";
+		_project.Goal = ProjectGoal + "";
+		_project.Description = ProjectDescription + "";
+		_project.Tasks = Tasks;
+		_project.Assignees = Employees;
+		_project.ProjectManager = managerDto;
+		_project.Milestones = new List<MilestoneDto>();
+		_project.Status = ProjectDto.StatusTypeDto.Active;
+	
+		var res = await Http.PostAsJsonAsync("api/Project/SaveProject", _project);
+
+		Snackbar.Add(res.StatusCode.ToString() == "OK" ? "Sikres művelet" : "Sikertelen művelet");
+	}
+
+	void Discard()
+	{
+		//window.location.href = "/";
+	}
+}

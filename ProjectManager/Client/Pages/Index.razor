@@ -1,0 +1,153 @@
+﻿@page "/"
+@layout MainLayout
+@using ProjectManager.Shared
+@inject HttpClient HttpClient
+@inject ISnackbar Snackbar
+@inject	NavigationManager Nav
+@inject AuthenticationStateProvider Auth
+@using Microsoft.AspNetCore.Authorization;
+@attribute [Authorize]
+
+<div class="page">
+	@if (IsAdmin)
+	{
+		<div class="newProjectBtn">
+			<MudButton Variant="Variant.Filled" style="flex-grow: 0;" OnClick="RedirectToNewProject">Új projekt</MudButton>
+			<MudButton Variant="Variant.Filled" style="flex-grow: 0;" OnClick="RedirectToNewTask">Új feladat</MudButton>
+		</div>
+	}
+
+	<div class="middle">
+		<div class="content">
+			@* <div> *@
+				@* <h3 class="display-6 text-center">Aktív projektek</h3> *@
+			
+			<MudDropContainer T="ProjectDropItem" Items="_items" ItemsSelector="@((item,dropzone) => item.Identifier == dropzone)" ItemDropped="ItemUpdated" Class="d-flex flex-wrap flex-grow-1">
+				<ChildContent>
+				<MudDropZone style="width: 25rem;" T="ProjectDropItem" Identifier="Active" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Aktív Projektek</MudText>
+				</MudDropZone>
+				<MudDropZone style="width: 25rem;" T="ProjectDropItem" Identifier="Archived" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Archivált Projektek</MudText>
+					</MudDropZone>
+				</ChildContent>
+				<ItemRenderer>
+					<MudButton style="background-color: white;" OnClick="() => ProjectChildClicked(context)" FullWidth="true" Elevation="25" Class="pa-4 my-2">@context.Project.Name</MudButton>
+				</ItemRenderer>
+			</MudDropContainer>
+
+			<MudDropContainer T="TaskDropItem" Items="_taskItems" ItemsSelector="@((item,dropzone) => item.Identifier == dropzone)" ItemDropped="TaskItemUpdated" Class="d-flex flex-wrap flex-grow-1">
+				<ChildContent>
+					<MudDropZone style="width: 25rem;" T="TaskDropItem" Identifier="Active" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Aktív Feladatok</MudText>
+					</MudDropZone>
+					<MudDropZone style="width: 25rem;" T="TaskDropItem" Identifier="Archived" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Archivált Feladatok</MudText>
+					</MudDropZone>
+				</ChildContent>
+				<ItemRenderer>
+					<MudButton style="background-color: white;" OnClick="() => TaskChildClicked(context)" FullWidth="true" Elevation="25" Class="pa-4 my-2">@context.Task.Name</MudButton>
+				</ItemRenderer>
+			</MudDropContainer>
+			
+		</div>
+	</div>
+</div>
+
+
+
+@code {
+	private string? _userName = "Név"; //user...
+	private int? _id = 1; //le kell kérni
+	private List<ProjectDropItem> _items = new(); //le kell kérni őket
+	private List<TaskDropItem> _taskItems = new();
+
+	private async void ItemUpdated(MudItemDropInfo<ProjectDropItem> dropItem)
+	{
+		var temp = dropItem.Item?.Identifier;
+		if (dropItem.Item == null) return;
+		dropItem.Item.Identifier = dropItem.DropzoneIdentifier;
+
+		var project = dropItem.Item.Project;
+		project.Status = (ProjectDto.StatusTypeDto)Enum.Parse(typeof(ProjectDto.StatusTypeDto), dropItem.Item.Identifier);
+		var res = await HttpClient.PostAsJsonAsync("api/Project/SaveProject", project); //TODO ez még rossz... (controller)
+		if (!res.IsSuccessStatusCode)
+		{
+			if (temp != null) dropItem.Item.Identifier = temp;
+			Snackbar.Add("Hiba", Severity.Error);
+		}
+		Console.WriteLine(res);
+	}
+
+	public class ProjectDropItem
+	{
+		public ProjectDto Project = null!;
+		public string Identifier = null!;
+	}
+
+	private async void TaskItemUpdated(MudItemDropInfo<TaskDropItem> dropItem)
+	{
+		if (dropItem.Item == null) return;
+		var temp = dropItem.Item.Identifier;
+		dropItem.Item.Identifier = dropItem.DropzoneIdentifier;
+
+		var task = dropItem.Item.Task;
+		task.Status = (ProjectDto.StatusTypeDto)Enum.Parse(typeof(ProjectDto.StatusTypeDto), dropItem.Item.Identifier);
+		var res = await HttpClient.PostAsJsonAsync("api/TaskItem/SaveTask", task); //TODO ez még rossz... (controller)
+		if (!res.IsSuccessStatusCode)
+		{
+			dropItem.Item.Identifier = temp;
+			Snackbar.Add("Hiba", Severity.Error);
+		}
+		Console.WriteLine(res);
+	}
+
+	public class TaskDropItem
+	{
+		public TaskItemDto Task = null!;
+		public string Identifier = null!;
+	}
+
+
+	private bool IsAdmin { get; set; }
+	protected override async Task OnInitializedAsync()
+	{
+		var a = await Auth.GetAuthenticationStateAsync();
+		var employee = await HttpClient.GetFromJsonAsync<EmployeeDto>($"api/Employee/GetEmployeeByEmail/{a.User.Identity.Name}");
+
+
+		IsAdmin = employee.PermissionTypeLevel == EmployeeDto.PermissionTypeDto.Admin;
+		_userName = employee.Name;
+
+		var activeProjects = await HttpClient.GetFromJsonAsync<List<ProjectDto>>($"api/Project/GetActiveProjectsFor/{employee.Id}");
+		var archivedProjects = await HttpClient.GetFromJsonAsync<List<ProjectDto>>($"api/Project/GetArchivedProjectsFor/{employee.Id}");
+		_items.AddRange(activeProjects.Select(i => new ProjectDropItem() { Project = i, Identifier ="Active"}).ToList());
+		_items.AddRange(archivedProjects.Select(i => new ProjectDropItem() { Project = i, Identifier = "Archived" }).ToList());
+
+
+		// var tasks = await HttpClient.GetFromJsonAsync<List<TaskItemDto>>($"api/Task/GetTasksFor/{employee.Id}");
+		// _taskItems.AddRange(tasks.Select(i => new TaskDropItem() { Task = i, Identifier = i.Status == ProjectDto.StatusTypeDto.Active ? "Active" : "Archived" }).ToList());
+
+	}
+
+	void RedirectToNewProject()
+	{
+		Nav.NavigateTo("/newproject");
+	}
+
+	void RedirectToNewTask()
+	{
+		Nav.NavigateTo("/newtask");
+	}
+
+	private void ProjectChildClicked(ProjectDropItem item)
+	{
+		Nav.NavigateTo($"/editproject/{item.Project.Id}");
+		Console.WriteLine($"Item clicked");
+	}
+	private void TaskChildClicked(TaskDropItem item)
+	{
+		Nav.NavigateTo($"/edittask/{item.Task.Id}");
+		Console.WriteLine($"Item clicked");
+	}
+}

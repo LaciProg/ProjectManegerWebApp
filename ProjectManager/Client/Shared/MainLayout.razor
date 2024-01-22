@@ -1,0 +1,54 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+<MudThemeProvider Theme="theme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudLayout>
+	<MudAppBar>
+		<MudHidden Breakpoint="Breakpoint.LgAndUp">
+			<MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="@((_) => DrawerToggle())" Color="Color.Inherit" Edge="Edge.Start" />
+		</MudHidden>
+		<MudHidden class="ml-8" Breakpoint="Breakpoint.LgAndUp" Invert="true">
+			<MudLink Color="Color.Secondary" class="ml-12" Href="/projects">Projektjeim</MudLink>
+			<MudLink Color="Color.Secondary" class="ml-12" Href="/tasks">Feladataim</MudLink>
+			<MudLink Color="Color.Secondary" class="ml-12" Href="/analyse">Áttekintés</MudLink>
+		</MudHidden>
+	
+		<MudLink class="absolute" style="left: 50%; transform: translateX(-50%);" Href="/"><MudImage Style="width: 3rem; height: 3rem;" Src="favicon.png" Alt="Logo"></MudImage></MudLink>
+		<MudSpacer />
+		<MudHidden class="ml-8" Breakpoint="Breakpoint.LgAndUp" Invert="true">
+			<AuthorizeView>
+				<Authorized>
+					<MudLink Color="Color.Secondary" class="mr-12" Href="/user">Hello, @context.User?.Identity.Name!</MudLink>
+					<MudLink Color="Color.Secondary" class="mr-12" OnClick="Redirect">Kijelentkezés</MudLink>
+				</Authorized>
+				<NotAuthorized>
+					<MudLink Color="Color.Secondary" class="mr-12" Href="Identity/Account/Login">Bejelentkezés</MudLink>
+				</NotAuthorized>
+			</AuthorizeView>
+		</MudHidden>
+	</MudAppBar>
+	<MudDrawer @bind-Open="@_openDrawer" Color="Color.Info">
+		<MyNavMenu/>
+	</MudDrawer>
+	<MudMainContent Class="overflow-auto">
+		@Body
+	</MudMainContent>
+</MudLayout>
+
+@code{
+	private CustomTheme theme = new CustomTheme();
+	void Redirect()
+	{
+		Navigation.NavigateToLogout("authentication/logout");
+	}
+
+	bool _openDrawer = false;
+
+	void DrawerToggle()
+	{
+		_openDrawer = !_openDrawer;
+	}
+}

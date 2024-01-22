@@ -1,0 +1,116 @@
+﻿@page "/user" 
+@using Microsoft.AspNetCore.Authorization;
+@using ProjectManager.Shared;
+@attribute [Authorize]
+@layout MainLayout
+@inject AuthenticationStateProvider Auth
+@inject HttpClient http
+@inject NavigationManager nav
+@inject ISnackbar Snackbar
+
+<h1 class="display-2" style="text-align: center">Felhasználói adatok</h1>
+<div class="container">
+
+	<h1 class="display-6">Név</h1>
+	<span>@User.Name</span>
+
+	<h1 class="display-6">Email cím</h1>
+	<span>@User.EmailAddress</span>
+	<MudLink style="font-size: x-large;" Href="Identity/Account/ForgotPassword">Jelszómódosítás</MudLink>
+
+	<h1 class="display-6">Születési dátum</h1>
+	<span>@User.BirthDate</span>
+
+	<h1 class="display-6">Jogosultság</h1>
+	<span>@PermissionToString(User.PermissionTypeLevel)</span>
+
+	<h1 class="display-6">Aktív feladatok</h1>
+
+	<MudPaper Width="300px">
+		<MudList Clickable="true">
+			@if (User.Tasks != null)
+			{
+				@foreach (var t in User.Tasks)
+				{
+					<MudListItem Text="@(t.Name)" />
+				}
+			}
+			else{
+				<MudListItem Text="Nincs feladata egyelőre"/>
+			}
+		</MudList>
+	</MudPaper>
+
+
+	@if (User.PermissionTypeLevel == EmployeeDto.PermissionTypeDto.Admin)
+	{
+		<h1 class="display-6">Admin jogosultságok</h1>
+		<MudLink class="d-block mt-3" Href="Identity/Account/Register">
+			Új munkatárs felvétele
+		</MudLink>
+
+		<MudAutocomplete T="string" Label="Munkatárs" @bind-Value="EditableEmployeeEmail" SearchFunc="@FindEmployees" />
+		<MudButton class="d-block" OnClick="NavToEditUser">
+			Munkatárs adatainak változtatása
+		</MudButton>
+	}
+</div>
+
+@code{
+
+	public string EditableEmployeeEmail { get; set; }
+	List<EmployeeDto> employees;
+	public EmployeeDto User { get; set; } = new();
+
+	//...
+	string PermissionToString(EmployeeDto.PermissionTypeDto permission)
+	{
+		switch (permission)
+		{
+			case EmployeeDto.PermissionTypeDto.Employee:
+				return "Munkatárs";
+			case EmployeeDto.PermissionTypeDto.ProjectManager:
+				return "Projektmenedzser";
+			case EmployeeDto.PermissionTypeDto.Admin:
+				return "Admin";
+			default:
+				return "¯\\_(ツ)_/¯";
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		//TODO
+		var a = await Auth.GetAuthenticationStateAsync();
+		var email = a.User.Identity.Name;
+
+		Console.WriteLine($"Email: {email}");
+		User = await http.GetFromJsonAsync<EmployeeDto>($"api/Employee/GetEmployeeByEmail/{email}");
+
+		employees = await http.GetFromJsonAsync<List<EmployeeDto>>("api/Employee/GetAllEmployees");
+		StateHasChanged();
+	}
+
+	void ChangePassword()
+	{
+		nav.NavigateTo("/Identity/Account/ForgotPassword");
+	}
+
+	private async Task<IEnumerable<string>> FindEmployees(string value)
+	{
+		if (string.IsNullOrEmpty(value))
+			return employees.Select(e => e.EmailAddress);
+		return employees.Where(x => x.EmailAddress.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(e => e.EmailAddress);
+	}
+	async Task NavToEditUser()
+	{
+		if (string.IsNullOrEmpty(EditableEmployeeEmail))
+		{
+			Snackbar.Add("Üres név!", Severity.Error);
+			return;
+		}
+		var e = await http.GetFromJsonAsync<EmployeeDto>($"api/Employee/GetEmployeeByEmail/{EditableEmployeeEmail}");
+		var id = e?.Id;
+		nav.NavigateTo($"/edituser/{id}");
+	}
+}

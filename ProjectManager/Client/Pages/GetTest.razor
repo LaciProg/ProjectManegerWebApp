@@ -1,0 +1,111 @@
+﻿@page "/testGet"
+@using ProjectManager.Shared;
+@inject HttpClient http
+<button @onclick="getall">get all</button>
+
+@code{
+	async Task getall()
+	{
+		var res = await http.GetFromJsonAsync<List<MilestoneDto>>("api/Milestone/GetAllMilestones");
+		foreach(var r in res)
+		{
+			Console.WriteLine($"{r.Id} {r.Name} {r.Description}");
+		}
+	}
+}
+@*@using ProjectManager.Shared;
+<<<<<<< HEAD
+@inject HttpClient http
+
+<input type="text" @bind="name" placeholder="Name"/>
+<button @onclick="Post">Post</button>
+
+<button @onclick="GetAll">Get all</button>
+
+<input @bind="id" type="number" placeholder="id"/>
+<button @onclick="Delete">Delete</button>
+
+@code {
+	public string name { get; set; }
+	public int id { get; set; }
+
+	async Task Post()
+	{
+		var res = await http.PostAsJsonAsync("api/Employee/SaveEmployee", new EmployeeDTO()
+		{
+			Id = 0,
+			EmailAddress = new Random().NextInt64(2345).ToString(),
+			Password = "jelszo",
+			Name = name,
+			BirthDate = DateTime.Now,
+			Tasks = new List<TaskItemDTO>(),
+			PermissionTypeLevel = EmployeeDTO.PermissionTypeDTO.Employee
+		});
+
+		Console.WriteLine(res);
+=======
+@inject HttpClient Http
+<input @bind="_id" type="number" placeholder="id"/>
+<input @bind="_postName"type="text" placeholder="name" />
+<button @onclick="Submit">POST</button>
+
+<input @bind="_getId" type="number" placeholder="name" />
+<button @onclick="Get">GET</button>
+<button @onclick="GetAll">GET ALL</button>
+
+<button @onclick="Delete">DELETE</button>
+
+
+@code {
+	private int _id;
+	private string _postName = null!;
+	private int _getId;
+
+	async Task Submit(){
+		var milestone = new MilestoneDto()
+		{
+			Name = _postName,
+			Id = _id,
+			Deadline = new(),
+			Description = ""
+		};
+		var res = await Http.PostAsJsonAsync("api/Milestone/SaveMilestone", milestone);
+		Console.WriteLine(res.StatusCode);
+	}
+
+	async Task Get()
+	{
+		var res = await Http.GetFromJsonAsync<MilestoneDto>($"api/Milestone/Get/{_getId}");
+		Console.WriteLine(res?.Name);
+>>>>>>> ef6fcf57b03aa8ca84ac44cf10b95188d841b6af
+	}
+
+	async Task GetAll()
+	{
+<<<<<<< HEAD
+		var result = await http.GetFromJsonAsync<List<EmployeeDTO>>("api/Employee/GetAllEmployees");
+		Console.WriteLine($"result is: {result.Count}");
+		foreach (var res in result)
+		{
+			Console.WriteLine($"{res.Id}, {res.Name}, {res.EmailAddress}, {res.Password}, {res.Tasks}, {res.BirthDate}");
+		}
+=======
+		var res = await Http.GetFromJsonAsync<List<MilestoneDto>>($"api/Milestone/GetAllMilestones");
+		if (res != null)
+			foreach (var r in res)
+			{
+				Console.WriteLine($"{r.Name} {r.Id}");
+			}
+>>>>>>> ef6fcf57b03aa8ca84ac44cf10b95188d841b6af
+	}
+
+	async Task Delete()
+	{
+<<<<<<< HEAD
+		var res = await http.DeleteFromJsonAsync<EmployeeDTO>($"api/Employee/DeleteEmployee/{id}");
+		Console.WriteLine(res);
+=======
+		var res = await Http.DeleteFromJsonAsync<MilestoneDto>($"api/Milestone/DeleteAll");
+>>>>>>> ef6fcf57b03aa8ca84ac44cf10b95188d841b6af
+	}
+}*@

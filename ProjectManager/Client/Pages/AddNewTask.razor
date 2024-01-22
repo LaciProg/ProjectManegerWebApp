@@ -1,0 +1,134 @@
+﻿@page "/newtask"
+@using ProjectManager.Shared;
+@using Microsoft.AspNetCore.Authorization;
+@inject ISnackbar Snackbar
+
+@attribute [Authorize]
+@layout LoginLayout
+@inject HttpClient Http
+<h1>Új feladat</h1> <!--Text Align-->
+<MudTextField @bind-Value="TaskName" Label="Név" Variant="Variant.Filled"></MudTextField>
+<MudTextField T="string" Label="Leírás" Variant="Variant.Filled" Text="@TaskDescription" Lines="5" />
+<MudNumericField T="uint" @bind-Value="TaskPriority" Label="Prioritás" Variant="Variant.Filled" Min="0" Max="100" />
+<MudTextField @bind-Value="DeadLine" Format="yyyy.MM.dd" Label="Határidő" Variant="Variant.Filled"></MudTextField>
+<MudAutocomplete T="string" Class="mt-4" Label="Előző feladat" @bind-Value="PreviousTaskName" SearchFunc="@FindTasksFor" />
+
+<div class="addField">
+    <div style="display: flex; flex-direction: row;">
+        <!---->
+        <MudAutocomplete T="string" Label="Ember hozzárendelése" @bind-Value="EmployeeName" SearchFunc="@FindEmployees" />
+        <MudButton @onclick="AddEmployee" style="border: 1px solid rgb(189, 189, 189); background-color: rgb(232,232,232)" class="p-0 mt-1 ml-1" Variant="Variant.Outlined">+</MudButton>
+    </div>
+    <MudChipSet>
+        @foreach (var e in Employees)
+        {
+            <MudChip Label="true" Color="Color.Default" OnClose="() => RemoveEmployee(e)">@e.Name</MudChip>
+        }
+    </MudChipSet>
+</div>
+
+<div class="buttons">
+    <MudButton @onclick="Submit" Variant="Variant.Outlined">Mentés</MudButton>
+    <MudButton Class="mt-2" @onclick="Discard" Variant="Variant.Outlined">Elvetés</MudButton>
+</div>
+
+@code {
+    public string? TaskName { get; set; }
+    public string? TaskDescription { get; set; }
+    public uint TaskPriority { get; set; }
+    public string? EmployeeName { get; set; } //a hozzárendelt munkatárs neve
+    public DateTime DeadLine { get; set; }
+    public string? PreviousTask { get; set; }
+    public string? PreviousTaskName { get; set; }
+
+    public List<TaskItemDto> Tasks = new();
+    public List<EmployeeDto> Employees = new();
+    private List<EmployeeDto> _allEmployees = new();
+
+    async void AddEmployee(){
+        if(EmployeeName == null)
+        {
+            return;
+        }
+
+        var employees = await Http.GetFromJsonAsync<List<EmployeeDto>>($"api/Employee/GetAllEmployees" );
+        if (employees != null)
+        {
+            var res = employees.SingleOrDefault(e => e.Name == EmployeeName);
+
+            if (!Employees.Any(e => e.EmailAddress == res?.EmailAddress || e.Name == res?.Name))
+            {
+                if (res != null)
+                {
+                    Employees.Add(res);
+                    StateHasChanged();
+                }
+            }
+            else Snackbar.Add("Már hozzá lett adva!", Severity.Error);
+        }
+        EmployeeName = "";
+        StateHasChanged();
+    }
+
+    void RemoveEmployee(EmployeeDto e)
+    {
+        Employees.Remove(e);
+    }
+
+    private async Task<IEnumerable<string>> FindTasksFor(string value)
+    {
+        var tasks = await Http.GetFromJsonAsync<List<TaskItemDto>>("api/Task/GetAllTasks");
+
+
+        if (string.IsNullOrEmpty(value))
+            return tasks.Select(e => e.Name);
+        return tasks.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(e => e.Name);
+    }
+
+    private Task<IEnumerable<string>> FindEmployees(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(_allEmployees.Select(e => e.Name));
+        return Task.FromResult(_allEmployees?.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(e => e.Name));
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allEmployees = await Http.GetFromJsonAsync<List<EmployeeDto>>($"api/Employee/GetAllEmployees");
+        
+        /*Employees.Add(new() { Name = "Test1" });
+        Employees.Add(new() { Name = "Test2" });
+        Employees.Add(new() { Name = "Test3" });
+        Employees.Add(new() { Name = "Test4" });
+        Employees.Add(new() { Name = "Test5" });
+        Employees.Add(new() { Name = "Test6" });
+        Employees.Add(new() { Name = "Test7" });
+        Employees.Add(new() { Name = "Test8" });*/
+    }
+
+    async void Submit()
+    {
+        var taskList = await Http.GetFromJsonAsync<List<TaskItemDto>>("api/Task/GetAllTasks");
+        var prevTask = taskList?.SingleOrDefault(t => t.Name == PreviousTaskName) ?? new TaskItemDto();
+        var taskItem = new TaskItemDto
+        {
+            Id = 0,
+            Name = TaskName+"",
+            Description = TaskDescription+"",
+            Priority = TaskPriority,
+            Parent = prevTask,
+            Deadline = DeadLine,
+            Assignees = Employees
+        };
+
+        var res = await Http.PostAsJsonAsync("api/Task/SaveTask", taskItem);
+
+        Snackbar.Add(res.StatusCode.ToString() == "OK" ? "Sikres művelet" : "Sikertelen művelet");
+        
+    }
+
+    void Discard()
+    {
+        //window.location.href = "/";
+    }
+}

@@ -1,0 +1,80 @@
+﻿a, button{
+    background-color: white;
+    border: 1px solid grey;
+}
+
+a {
+    /*border-radius: 8px;*/
+    text-decoration: none;
+    color: black;
+    padding: 0.4rem 1.2rem;
+}
+
+
+.center {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.tasks {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 50%;
+}
+
+ul{
+    list-style: none;
+    border: 1px solid grey;
+    min-height: 15rem;
+    min-width: 15rem;
+    padding: 0;
+}
+ul button{
+    width: 100%;
+}
+
+.elem{
+    text-align: center;
+}
+    .elem button {
+        text-align: left;
+    }
+.bottom{
+    margin-top: 5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.bot-top {
+    display: flex;
+}
+
+.bot-top button{
+    width: 100%;
+}
+
+.selectors{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 15%;
+}
+
+.description{
+    resize: none;
+    border: 1px solid black;
+}
+.bot-bot{
+    margin-top: 3rem;
+    display: flex;
+    justify-content: center;
+}
+
+.bot-bot-select{
+    position: absolute;
+    right: 25%;
+}

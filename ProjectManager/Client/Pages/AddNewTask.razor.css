@@ -1,0 +1,122 @@
+﻿h1 {
+    text-align: center;
+    padding: 2rem;
+}
+
+.addField {
+    margin: 1rem 0;
+}
+
+.buttons {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-grow: 1;
+}
+/*.container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #E0E0E0;
+    width: auto;
+    height: auto;
+    padding: 0 10rem;
+    border-radius: 16px;
+}
+
+    .container h3 {
+        margin: 2rem;
+    }
+
+    .container input:not(.plusInput) {
+        width: 17rem;
+        height: 2.5rem;
+    }
+
+    .container button.containerBtn {
+        width: 8rem;
+        height: 2rem;
+    }
+
+    .container button, .container input {
+        border-radius: 8px;
+        border: 1px solid grey;
+    }
+
+.inputs {
+    display: flex;
+    flex-direction: column;
+}
+
+    .inputs > * {
+        margin-bottom: 1rem;
+    }
+
+.buttons {
+    display: flex;
+    flex-direction: column;
+}
+
+    .buttons > * {
+        margin-bottom: 1rem;
+    }
+
+textarea {
+    resize: none;
+    border-radius: 8px;
+}
+
+.plus {
+    width: 2rem;
+    height: 2rem;
+}
+
+.plusInput {
+    width: 15rem;
+    height: 2.5rem;
+}
+
+.plusInputs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+    .plusInputs ul {
+        list-style: none;
+    }
+
+    .plusInputs .plusInputValues ul li {
+        border: 1px solid grey;
+        background-color: white;
+        border-radius: 4px;
+        padding-right: .3rem;
+        padding-left: .1rem;
+        width: 4rem;
+        position: relative;
+        display: inline-block;
+        margin-top: .5rem;
+        margin-right: .2rem;
+    }
+
+        .plusInputs .plusInputValues ul li button {
+            position: absolute;
+            right: 0;
+            top: 0;
+            background: none;
+            border: 0;
+        }
+
+.plusInputValues ul {
+    padding: 0;
+    max-width: 17rem;
+}
+
+#date{
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+*/

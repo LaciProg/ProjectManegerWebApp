@@ -1,0 +1,96 @@
+﻿@page "/testd"
+@using ProjectManager.Shared;
+@inject HttpClient http
+
+@* <MudTable Items="@Elements">
+    <HeaderContent>
+        @foreach(var e in Days)
+        {
+            <MudTh>@($"{e.Year.ToString().PadLeft(2, '0')}. {e.Month.ToString().PadLeft(2, '0')}. {e.Day.ToString().PadLeft(2, '0')}.")</MudTh>
+        }
+    </HeaderContent>
+    <RowTemplate>
+        @foreach (var e in Elements)
+        {
+            <MudTd>Task neve</MudTd>
+        }
+    </RowTemplate>
+</MudTable>  *@
+<table>
+    <thead>
+        @foreach(var e in Days)
+        {
+            <th>@($"{e.Year.ToString().PadLeft(2, '0')}. {e.Month.ToString().PadLeft(2, '0')}. {e.Day.ToString().PadLeft(2, '0')}.")</th>
+        }
+    </thead>
+    <tbody>
+        <tr>
+            @foreach (var e in Elements)
+            {
+                <td>e</td>
+            }
+        </tr>
+        <tr>
+            @foreach (var e in Elements)
+            {
+                <td> </td>
+            }
+        </tr>
+        <tr>
+            @foreach (var e in Elements)
+            {
+                <td> </td>
+            }
+        </tr>
+        <tr>
+            @foreach (var e in Elements)
+            {
+                <td> </td>
+            }
+        </tr>
+        <tr>
+            @foreach (var e in Elements)
+            {
+                <td> </td>
+            }
+        </tr>
+    </tbody>
+</table>
+<button @onclick="() => {pager--; Set(); StateHasChanged();}">←</button>
+<button @onclick="() => {pager++; Set(); StateHasChanged();}">→</button>
+
+@code{
+    private List<string> Elements;
+    private List<DateTime> Days;
+
+    [Parameter]
+    public int id { get; set; }
+
+    public int pager { get; set; } = 0;
+
+    ProjectDto project;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Elements = new();
+        Days = new();
+        project = await http.GetFromJsonAsync<ProjectDto>($"api/Project/GetProject/{id}"); //todo Project a path neve?
+        Set();
+    }
+
+    void Set()
+    {
+        Elements = new();
+        Days = new();
+        DateTime now = DateTime.Today.AddDays(pager);
+        for (int i = 0; i < 5; i++)
+        {
+            // var str = $"{now.Year.ToString()} {now.Month.ToString()} {now.Day.ToString()}";
+            Days.Add(now);
+            now = now.AddDays(1);
+
+            var s = project.Tasks.FirstOrDefault(t => t.Deadline == now);
+            Elements.Add(s == null ? "" : s.Name);
+        }
+    }
+}

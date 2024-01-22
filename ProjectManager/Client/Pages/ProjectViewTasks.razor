@@ -1,0 +1,178 @@
+﻿@page "/projects/{Id:int}/projectTasks"
+@using Microsoft.AspNetCore.Authorization;
+@using ProjectManager.Shared
+@inject HttpClient HttpClient
+@inject ISnackbar Snackbar
+@inject	NavigationManager Nav
+@inject AuthenticationStateProvider Auth
+@attribute [Authorize]
+
+<div class="middle">
+	<h3>@_projectName</h3>
+</div>
+
+<div class="center">
+	<div class="middle">
+		<div class="content">
+			
+			<MudDropContainer T="TaskDropItem" Items="_taskItems" ItemsSelector="@((item, dropzone) => item.Identifier == dropzone)" ItemDropped="TaskItemUpdated" Class="d-flex flex-wrap flex-grow-1">
+				<ChildContent>
+					<MudDropZone style="width: 25rem;" T="TaskDropItem" Identifier="Active" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Aktív Feladatok</MudText>
+					</MudDropZone>
+					<MudDropZone style="width: 25rem;" T="TaskDropItem" Identifier="Complete" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Megerősítésre vár</MudText>
+					</MudDropZone>
+					<MudDropZone style="width: 25rem;" T="TaskDropItem" Identifier="Archived" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+						<MudText Typo="Typo.h6" Class="mb-8 text-center">Befejezett Feladatok</MudText>
+					</MudDropZone>
+				</ChildContent>
+				<ItemRenderer>
+					<MudButton style="background-color: white;" @ondblclick="()=>TaskChildDoubleClicked(context)" @onclick="()=>TaskChildClicked(context)" FullWidth="true" Elevation="25" Class="pa-4 my-2">@context.Task.Name</MudButton>
+				</ItemRenderer>
+			</MudDropContainer>
+
+		</div>
+	</div>
+
+	<div class="bottom">
+		<div class="bot-top">
+			<div class="selectors">
+				@_current.Name
+                <MudButton @onclick="SetDescription">Leírás</MudButton>
+				<MudButton @onclick="SetAssignees">Hozzárendeltek</MudButton>
+				<MudButton @onclick="SetOtherInfos">Részletek</MudButton>
+			</div>
+			<textarea readonly class="description" rows="8" cols="100">
+			@_displayedText
+			</textarea>
+		</div>
+		<div class="bot-bot">
+			<a href="/newtask">Új feladat</a>
+			<a href="/edittask/{_taskId}">Szerkesztés</a>
+			<button @onclick="DeleteTask">Feladat törlése</button>
+		</div>
+	</div>
+</div>
+
+
+@code {
+	private int? _taskId;
+	private string _projectName = "Projekt név";
+	private string? _userName = "Név"; //user...
+	[Parameter]
+	public int? Id { set; get; } //le kell kérni
+	private List<TaskDropItem> _taskItems = new();
+	private TaskItemDto _current = new() {Name = "<>", Description = "<>"};
+	private string _displayedText = "";
+
+	private async Task DeleteTask()
+	{
+		var res = await HttpClient.DeleteAsync($"api/TaskItem/DeleteTask/{_taskId}"); //TODO ez már talán jó
+		if (!res.IsSuccessStatusCode)
+		{
+			Snackbar.Add("Hiba", Severity.Error);
+		}
+		Console.WriteLine(res);
+	}
+
+	private async void TaskItemUpdated(MudItemDropInfo<TaskDropItem> dropItem)
+	{
+		var temp = dropItem.Item?.Identifier;
+		if (dropItem.Item == null) return;
+		dropItem.Item.Identifier = dropItem.DropzoneIdentifier;
+
+		var task = dropItem.Item.Task;
+		task.Status = (ProjectDto.StatusTypeDto)Enum.Parse(typeof(ProjectDto.StatusTypeDto), dropItem.Item.Identifier);
+		var res = await HttpClient.PostAsJsonAsync("api/TaskItem/SaveTask", task);
+		if (!res.IsSuccessStatusCode)
+		{
+			dropItem.Item.Identifier = temp!;
+			Snackbar.Add("Hiba", Severity.Error);
+		}
+		Console.WriteLine(res);
+	}
+
+	public class TaskDropItem
+	{
+		public TaskItemDto Task = null!;
+		public string Identifier = null!;
+	}
+	
+
+	protected override async Task OnInitializedAsync()
+	{
+		var project =  await HttpClient.GetFromJsonAsync<ProjectDto>($"api/Project/GetProject/{Id}");
+		_projectName = project!.Name;
+		foreach (var task in project.Tasks)
+		{
+			_taskItems.Add(new TaskDropItem{Task = task, Identifier = task.Status.ToString()});
+		}
+
+			/*_taskItems = new()
+			{
+	//TODO REMOVE (CSAK TESZT)
+				new()
+				{
+					Task = new TaskItemDto() { Name = "Test", Description = "Első" },
+					Identifier = "Active"
+				},
+				new()
+				{
+					Task = new TaskItemDto() { Name = "Test", Description = "Második" },
+					Identifier = "Active"
+				},
+				new()
+				{
+					Task = new TaskItemDto() { Name = "Test", Description = "Harmadik" },
+					Identifier = "Complete"
+				},
+				new()
+				{
+					Task = new TaskItemDto() { Name = "Test", Description = "Negyedik" },
+					Identifier = "Archived"
+				}
+			};*/
+		
+
+		var authenticationState = await Auth.GetAuthenticationStateAsync();
+		_userName = authenticationState.User.Identity?.Name;
+	}
+
+	private void TaskChildClicked(TaskDropItem item)
+	{
+		_current = item.Task;
+		_taskId = item.Task.Id;
+		SetDescription();
+		StateHasChanged();
+
+	}
+
+	private void TaskChildDoubleClicked(TaskDropItem item)
+	{
+		Nav.NavigateTo($"/edittask/{item.Task.Id}");
+		Console.WriteLine($"Item clicked");
+	}
+	
+	private void SetDescription() {
+		_displayedText = _current.Description;
+	}
+
+	private void SetAssignees() {
+		var assignees = _current.Assignees;
+		if(assignees.Count == 0) {
+			_displayedText = "Nincs hozzárendelve senki";
+			return;
+		}
+		_displayedText = assignees.Select(x => x.Name).Aggregate((x, y) => x + ", " + y);
+
+	}
+
+	private void SetOtherInfos()
+	{
+		_displayedText = $"Határidő: {_current.Deadline}\n"
+		                 + $"Prioritás: {_current.Priority}";
+		
+	}
+
+}

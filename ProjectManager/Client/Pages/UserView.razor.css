@@ -1,0 +1,46 @@
+﻿.container {
+    background-color: #E0E0E0;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: black 0 0 5px;
+    margin-bottom: .5rem;
+}
+
+span{
+    display: block;
+    font-size: x-large;
+}
+
+.display-6{
+    margin-top: 2rem;
+    margin-bottom: 0;
+    font-weight: 400;
+}
+
+/*.page {
+    margin: 1rem;
+    padding: 2rem;
+    background-color: #1A237E;
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+    box-shadow: #000000 1px 1px 10px;
+}
+
+.paper {
+    background-color: #3F51B5;
+    padding: 0 1rem 1rem 0.5rem;
+    margin: .5rem;
+    border-radius: 8px;
+    box-shadow: #000000 1px 1px 5px;*/
+    /*border: 2px solid #1A237E;*/
+/*}
+
+.display-2, .display-4, .display-6{
+    color: white;
+    margin: 0;
+}
+
+.display-2{
+    margin-bottom: 2rem;
+}*/
